@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- 书页保持在自适应图标的安全区内，圆形裁切时不会丢失边角。 -->
+    <path
+        android:fillColor="#708364"
+        android:pathData="M18,29 C31,25 43,28 52,36 L52,79 C42,72 31,69 18,73 Z"
+        android:strokeColor="#344331"
+        android:strokeLineJoin="round"
+        android:strokeWidth="2.4" />
+    <path
+        android:fillColor="#809274"
+        android:pathData="M90,29 C77,25 65,28 56,36 L56,79 C66,72 77,69 90,73 Z"
+        android:strokeColor="#344331"
+        android:strokeLineJoin="round"
+        android:strokeWidth="2.4" />
+    <!-- 中缝和书签让小尺寸下仍能一眼识别为打开的书。 -->
+    <path
+        android:fillColor="#F2E8D2"
+        android:pathData="M52,36 L56,36 L56,79 L54,82 L52,79 Z" />
+    <path
+        android:fillColor="#C99056"
+        android:pathData="M51,31 L57,31 L57,55 L54,51 L51,55 Z" />
+    <path
+        android:fillColor="@android:color/transparent"
+        android:pathData="M24,38 C34,36 42,38 48,43 M24,48 C34,46 42,48 48,53 M60,43 C66,38 74,36 84,38 M60,53 C66,48 74,46 84,48"
+        android:strokeColor="#E8DFC9"
+        android:strokeLineCap="round"
+        android:strokeWidth="2" />
+</vector>
