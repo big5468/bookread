@@ -3,6 +3,7 @@ package com.guanjian.app.ui
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyColumn
@@ -11,7 +12,15 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
@@ -22,15 +31,15 @@ import androidx.compose.ui.unit.dp
  */
 
 /**
- * 页面根容器：可垂直滚动、统一 20dp 内边距、子项间距 16dp。
+ * 页面根容器：可垂直滚动、左右 16dp 内边距、子项间距 12dp。
  *
  * 所有编辑型页面都用它，这样键盘弹出时内容可滚动（配合 Activity 的
  * adjustResize），小屏设备上不会被输入法遮住底部按钮。
  */
 @Composable
 fun PageColumn(content: @Composable ColumnScope.() -> Unit) {
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp), content = content)
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp), content = content)
 }
 
 /**
@@ -38,16 +47,38 @@ fun PageColumn(content: @Composable ColumnScope.() -> Unit) {
  * 用于把「这一周」「今日小计划」这类信息分组，形成清晰的视觉层级。
  */
 @Composable
-fun Section(title: String, subtitle: String? = null, content: @Composable ColumnScope.() -> Unit) {
-    OutlinedCard(
+fun Section(title: String, subtitle: String? = null, icon: ImageVector? = null, accent: Color? = null,
+    content: @Composable ColumnScope.() -> Unit) {
+    val sectionAccent = accent ?: MaterialTheme.colorScheme.secondary
+    Card(
         modifier = Modifier.fillMaxWidth(),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
-        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(title, style = MaterialTheme.typography.titleMedium)
-            subtitle?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (icon != null) Box(Modifier.size(38.dp).clip(RoundedCornerShape(11.dp))
+                    .background(sectionAccent), contentAlignment = Alignment.Center) {
+                    Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(21.dp))
+                }
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(title, style = MaterialTheme.typography.titleMedium)
+                    subtitle?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                }
+            }
             content()
         }
+    }
+}
+
+/** 参考图中的大数字统计单元，用于周概览和回顾指标。 */
+@Composable
+fun Metric(value: String, label: String, modifier: Modifier = Modifier) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(value, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -63,6 +94,13 @@ fun Section(title: String, subtitle: String? = null, content: @Composable Column
 fun Field(label: String, value: String, onChange: (String) -> Unit, numeric: Boolean = false, multiline: Boolean = false) {
     OutlinedTextField(value, onChange, Modifier.fillMaxWidth(), label = { Text(label) },
         singleLine = !multiline, minLines = if (multiline) 3 else 1,
+        shape = MaterialTheme.shapes.medium,
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedContainerColor = MaterialTheme.colorScheme.surface,
+            unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+            focusedBorderColor = MaterialTheme.colorScheme.primary,
+            unfocusedBorderColor = MaterialTheme.colorScheme.outline
+        ),
         keyboardOptions = KeyboardOptions(keyboardType = if (numeric) KeyboardType.Number else KeyboardType.Text))
 }
 
@@ -75,17 +113,33 @@ fun Field(label: String, value: String, onChange: (String) -> Unit, numeric: Boo
  *
  * 选中的项会回显其显示文字；若当前值不在选项中（例如关联的书已被删除），
  * 则退化为直接显示原始值，保证不出现空白按钮。
- * 按钮最小高度 48dp，满足触控区域要求。
+ * 入口最小高度 64dp，包含字段标签与当前值。
  */
 @Composable
 fun Choice(label: String, value: String, options: List<Pair<String, String>>, onChange: (String) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     Box {
-        OutlinedButton({ expanded = true }, Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-            Text("$label：${options.find { it.first == value }?.second ?: value}")
-        }
+        SelectionField(label, options.find { it.first == value }?.second ?: value) { expanded = true }
         DropdownMenu(expanded, { expanded = false }) {
             options.forEach { (key, title) -> DropdownMenuItem(text = { Text(title) }, onClick = { onChange(key); expanded = false }) }
+        }
+    }
+}
+
+/** 单选入口与输入框保持同一形状，标签和当前值分行，长书名不挤压箭头。 */
+@Composable
+private fun SelectionField(label: String, value: String, onClick: () -> Unit) {
+    Surface(onClick = onClick, modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)) {
+        Row(Modifier.heightIn(min = 64.dp).padding(horizontal = 16.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(value.ifBlank { "请选择" }, style = MaterialTheme.typography.bodyLarge,
+                    maxLines = 2, overflow = TextOverflow.Ellipsis)
+            }
+            Icon(Icons.Default.KeyboardArrowDown, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -104,13 +158,12 @@ fun SearchableChoice(label: String, value: String, options: List<Pair<String, St
     var expanded by remember { mutableStateOf(false) }
     var query by remember { mutableStateOf("") }
     val selected = options.find { it.first == value }?.second ?: value
-    OutlinedButton({ expanded = true }, Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("$label：$selected") }
+    SelectionField(label, selected) { expanded = true }
     if (expanded) ModalBottomSheet(onDismissRequest = { expanded = false; query = "" }) {
-        Column(Modifier.fillMaxHeight(0.8f).padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(Modifier.fillMaxHeight(0.8f).imePadding().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("选择$label", style = MaterialTheme.typography.headlineSmall)
-            OutlinedTextField(query, { query = it }, Modifier.fillMaxWidth(), singleLine = true,
-                label = { Text("搜索$label") }, placeholder = { Text("输入名称快速查找") })
-            val visible = filterChoiceOptions(options, query)
+            Field("搜索$label", query, { query = it })
+            val visible = remember(options, query) { filterChoiceOptions(options, query) }
             if (visible.isEmpty()) Text("没有找到匹配项", color = MaterialTheme.colorScheme.onSurfaceVariant)
             LazyColumn(Modifier.fillMaxWidth().weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 items(visible, key = { it.first }) { (key, title) ->
@@ -123,7 +176,7 @@ fun SearchableChoice(label: String, value: String, options: List<Pair<String, St
                             containerColor = if (selectedItem) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)
                                 else MaterialTheme.colorScheme.surface
                         ),
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp))
                             .border(
                                 width = if (selectedItem) 1.5.dp else 1.dp,
                                 color = if (selectedItem) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,

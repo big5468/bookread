@@ -1,11 +1,19 @@
 package com.guanjian.app.ui
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.guanjian.app.data.*
 import kotlinx.coroutines.delay
 
@@ -24,7 +32,7 @@ private val activityTypes = listOf("阅读", "寻找书籍", "课程学习", "�
  *
  * @param clock 只读的时间来源，用于每秒取值
  * @param initialBookId 从书籍详情页进入时预选的书籍
- * @param onEnd 用户点「结束」，进入填写总结的状态（此时计时已暂停）
+ * @param onEnd 用户点「结束专注」，由上层先保存专注，再打开一次性的新建卡片页面
  * @param onSave 保存本次专注，参数依次为：专注 id、起始页、结束页、感受、完成的计划 id
  */
 @Composable
@@ -40,11 +48,17 @@ fun FocusScreen(active: ActiveFocusEntity?, books: List<BookEntity>, plans: List
         var type by rememberSaveable(initialBookId) { mutableStateOf(if (initialBookId != null) "阅读" else "自由自习") }
         var book by rememberSaveable(initialBookId) { mutableStateOf(initialBookId ?: "") }
         PageColumn {
-            Text("这一刻，想做什么？", style = MaterialTheme.typography.headlineMedium)
-            Text("选好就开始。切到后台也会继续计时。")
-            Choice("活动", type, activityTypes.map { it to it }) { type = it }
-            SearchableChoice("关联书籍（可选）", book, listOf("" to "不关联") + books.map { it.id to it.title }) { book = it }
-            Button({ onStart(type, book.ifBlank { null }) }, Modifier.fillMaxWidth().heightIn(min = 56.dp), enabled = !busy) { Text("现在开始") }
+            Section(
+                title = "这一刻，想做什么？",
+                subtitle = "选好就开始，切到后台也会继续计时。",
+                icon = Icons.Default.PlayArrow,
+                accent = MaterialTheme.colorScheme.primary
+            ) {
+                Choice("活动", type, activityTypes.map { it to it }) { type = it }
+                SearchableChoice("关联书籍（可选）", book, listOf("" to "不关联") + books.map { it.id to it.title }) { book = it }
+            }
+            Button({ onStart(type, book.ifBlank { null }) }, Modifier.fillMaxWidth().heightIn(min = 56.dp),
+                shape = MaterialTheme.shapes.medium, enabled = !busy) { Text("现在开始") }
         }
         return
     }
@@ -73,20 +87,36 @@ fun FocusScreen(active: ActiveFocusEntity?, books: List<BookEntity>, plans: List
     }
 
     PageColumn {
-        Text(if (active.awaitingSummary) "把这段时间留下来" else "安心专注", style = MaterialTheme.typography.headlineMedium)
-        Text(active.activityType, style = MaterialTheme.typography.titleLarge)
-        // 关联书籍可能已被删除，取不到就不显示，不影响计时
-        books.find { it.id == active.bookId }?.let { Text(it.title) }
-        Text(time, style = MaterialTheme.typography.displayLarge)
-        Text(if (active.clock.running) "正在专注" else "已暂停 · 暂停时间不计入专注")
-        // 重启恢复提示：此时时长靠墙钟推算，可能不准，因此用错误色提醒用户核对
-        if (active.recoveredAfterReboot || boot != active.clock.bootCount) Text("检测到设备重启，已依据保存时间恢复，请核对本次时长。", color = MaterialTheme.colorScheme.error)
+        Section(
+            title = if (active.awaitingSummary) "把这段时间留下来" else "安心专注",
+            subtitle = books.find { it.id == active.bookId }?.title ?: active.activityType,
+            icon = Icons.Default.Timer,
+            accent = MaterialTheme.colorScheme.secondary
+        ) {
+            BoxWithConstraints(Modifier.fillMaxWidth().padding(vertical = 20.dp), contentAlignment = Alignment.Center) {
+                Text(time, style = MaterialTheme.typography.displaySmall,
+                    fontSize = if (maxWidth < 300.dp) 34.sp else 44.sp,
+                    fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Medium,
+                    textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+            }
+            Text(
+                if (active.clock.running) "正在专注" else "已暂停 · 暂停时间不计入专注",
+                modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center,
+                color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium
+            )
+            // 重启恢复提示：此时时长靠墙钟推算，可能不准，因此用错误色提醒用户核对
+            if (active.recoveredAfterReboot || boot != active.clock.bootCount) Text("检测到设备重启，已依据保存时间恢复，请核对本次时长。", color = MaterialTheme.colorScheme.error)
+        }
         if (!active.awaitingSummary) {
             // 计时中：暂停/继续 + 结束。同一位置切换按钮文案，保持操作位置稳定
-            Button(if (active.clock.running) onPause else onResume, Modifier.fillMaxWidth(), enabled = !busy) {
+            Button(if (active.clock.running) onPause else onResume, Modifier.fillMaxWidth().heightIn(min = 56.dp),
+                shape = MaterialTheme.shapes.medium, enabled = !busy) {
                 Text(if (active.clock.running) "暂停" else "继续")
             }
-            OutlinedButton(onEnd, Modifier.fillMaxWidth(), enabled = !busy) { Text("结束并写一句总结") }
+            OutlinedButton(onEnd, Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                shape = MaterialTheme.shapes.medium, enabled = !busy) { Text("结束专注") }
+            Text("结束后会先保存专注时间，再邀请你留下一张卡片。", style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
         } else {
             // 待总结：只在与阅读相关时显示页码字段，纯自习不必填
             if (active.activityType == "阅读" || active.bookId != null) {
@@ -112,8 +142,6 @@ fun FocusScreen(active: ActiveFocusEntity?, books: List<BookEntity>, plans: List
                 error = null
                 onSave(active.id, start, end, reflection, selected)
             } catch (e: IllegalArgumentException) { error = e.message } }, Modifier.fillMaxWidth(), enabled = !busy) { Text("保存本次专注") }
-            // 撤销结束意图，回到计时状态（仓库层会同步清掉 awaitingSummary）
-            TextButton(onResume, enabled = !busy) { Text("还想继续，返回计时") }
         }
     }
     if (switchPrompt && initialBookId != null) {

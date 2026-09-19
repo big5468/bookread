@@ -3,6 +3,7 @@ package com.guanjian.app.ui
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.*
 import androidx.compose.material3.*
@@ -45,13 +46,14 @@ internal fun quickProgressBook(book: BookEntity, input: String): BookEntity =
  */
 @Composable
 fun BooksScreen(books: List<BookEntity>, onAdd: () -> Unit, onOpen: (String) -> Unit) {
-    LazyVerticalGrid(GridCells.Adaptive(145.dp), Modifier.fillMaxSize(), contentPadding = PaddingValues(20.dp),
-        horizontalArrangement = Arrangement.spacedBy(14.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+    LazyVerticalGrid(GridCells.Adaptive(145.dp), Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item(span = { GridItemSpan(maxLineSpan) }) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("给下一次相遇留个位置", style = MaterialTheme.typography.headlineSmall)
-                Text("记下书名和大概位置，下次接着读。", style = MaterialTheme.typography.bodyMedium)
-                Button(onAdd) { Text("＋ 记一本书") }
+                Text("我的阅读书架", style = MaterialTheme.typography.headlineSmall)
+                Text("共 ${books.size} 本 · 记住位置，下次接着读", style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Button(onAdd, Modifier.fillMaxWidth().heightIn(min = 48.dp), shape = MaterialTheme.shapes.medium) { Text("＋ 记一本书") }
             }
         }
         // 空状态给出明确的第一步动作，而不是一句「暂无书籍」
@@ -59,14 +61,25 @@ fun BooksScreen(books: List<BookEntity>, onAdd: () -> Unit, onOpen: (String) -> 
             Section("书墙还空着", "从今天想找的一本书开始。") { OutlinedButton(onAdd) { Text("记录第一本书") } }
         }
         items(books, key = { it.id }) { book ->
-            OutlinedCard(onClick = { onOpen(book.id) }) {
+            Card(onClick = { onOpen(book.id) },
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)) {
                 BookCover(book)
                 Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(book.title, maxLines = 2, style = MaterialTheme.typography.titleMedium)
+                    Text(book.title, minLines = 2, maxLines = 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleMedium)
                     // 作者未填时显示占位文案，保持卡片高度一致，避免网格参差不齐
-                    Text(book.author.ifBlank { "作者未填写" }, maxLines = 1, style = MaterialTheme.typography.bodySmall)
+                    Text(book.author.ifBlank { "作者未填写" }, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     // 总页数未填时只显示当前页，不显示「/null」
-                    Text("${book.status} · ${book.currentPage ?: 0}${book.totalPages?.let { "/$it" } ?: ""} 页", style = MaterialTheme.typography.labelMedium)
+                    Text(book.status, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                    Text("已读 ${book.currentPage ?: 0}${book.totalPages?.let { " / $it" } ?: ""} 页",
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if ((book.totalPages ?: 0) > 0) LinearProgressIndicator(
+                        progress = { readingProgress(book.currentPage, book.totalPages, book.status == "读完") },
+                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp), color = MaterialTheme.colorScheme.tertiary,
+                        trackColor = MaterialTheme.colorScheme.tertiaryContainer)
+                    else Spacer(Modifier.height(8.dp))
                 }
             }
         }
@@ -127,9 +140,13 @@ fun BookDetailScreen(book: BookEntity?, cards: List<NoteWithTags>, busy: Boolean
     var currentPage by rememberSaveable(book.id, book.currentPage) { mutableStateOf(book.currentPage?.toString().orEmpty()) }
     PageColumn {
         Text(book.title, style = MaterialTheme.typography.headlineMedium)
-        Text(book.author.ifBlank { "作者未填写" })
+        Text(book.author.ifBlank { "作者未填写" }, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Button(onRead, Modifier.fillMaxWidth().heightIn(min = 56.dp), shape = MaterialTheme.shapes.medium) { Text("开始阅读这本书") }
+        OutlinedButton(onCard, Modifier.fillMaxWidth().heightIn(min = 48.dp), shape = MaterialTheme.shapes.medium) { Text("为这本书写卡片") }
         Section("${book.status} · 阅读进度") {
-            LinearProgressIndicator(progress = { readingProgress(book.currentPage, book.totalPages, book.status == "读完") }, modifier = Modifier.fillMaxWidth())
+            LinearProgressIndicator(progress = { readingProgress(book.currentPage, book.totalPages, book.status == "读完") },
+                modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.tertiary,
+                trackColor = MaterialTheme.colorScheme.tertiaryContainer)
             Text("${book.currentPage ?: 0} / ${book.totalPages?.toString() ?: "未知"} 页")
             Field("当前已读页数", currentPage, { currentPage = it }, numeric = true)
             Button(
@@ -137,7 +154,7 @@ fun BookDetailScreen(book: BookEntity?, cards: List<NoteWithTags>, busy: Boolean
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !busy && currentPage.trim() != book.currentPage?.toString().orEmpty()
             ) { Text(if (busy) "正在保存……" else "保存已读页数") }
-            Text("这里只修改阅读页数；书名、位置、封面和备注都会保留。", style = MaterialTheme.typography.bodySmall)
+            Text("读到哪里，就记到哪里。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             OutlinedButton(onEdit) { Text("编辑书籍和位置") }
         }
         Section("下次去这里找") {
@@ -150,11 +167,12 @@ fun BookDetailScreen(book: BookEntity?, cards: List<NoteWithTags>, busy: Boolean
             if (book.publishedDate.isNotBlank()) Text("出版时间：${book.publishedDate}")
             if (book.description.isNotBlank()) Text(book.description)
         }
-        Button(onRead, Modifier.fillMaxWidth()) { Text("开始阅读这本书") }
-        OutlinedButton(onCard, Modifier.fillMaxWidth()) { Text("为这本书写卡片") }
         Text("关联卡片", style = MaterialTheme.typography.titleLarge)
         if (cards.isEmpty()) Text("读到值得带走的想法，就记一张卡片。")
-        cards.forEach { card -> OutlinedCard(onClick = { onOpenCard(card.card.id) }, Modifier.fillMaxWidth()) {
+        cards.forEach { card -> Card(onClick = { onOpenCard(card.card.id) }, modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)) {
             Column(Modifier.padding(16.dp)) {
                 Text(card.card.title, style = MaterialTheme.typography.titleMedium)
                 Text(cardPreview(card.card.content), maxLines = 3, overflow = TextOverflow.Ellipsis)

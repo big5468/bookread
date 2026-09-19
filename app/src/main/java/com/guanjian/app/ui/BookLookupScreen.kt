@@ -11,11 +11,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.OutlinedCard
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -85,7 +87,10 @@ fun BookLookupScreen(
             Section("没有找到匹配的书") { Text("可以缩短书名、改用 ISBN，或者返回继续手工填写。") }
         }
         items(state.books, key = { it.sourceKey }) { book ->
-            OutlinedCard(onClick = { if (!selecting) onSelect(book, overwrite) }, modifier = Modifier.fillMaxWidth()) {
+            Card(onClick = { if (!selecting) onSelect(book, overwrite) }, modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)) {
                 Row(Modifier.padding(14.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                     if (book.coverUrl != null) AsyncImage(
                         model = book.coverUrl,

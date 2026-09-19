@@ -1,6 +1,7 @@
 package com.guanjian.app.ui
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
@@ -27,40 +28,65 @@ fun CardsScreen(cards: List<NoteWithTags>, books: List<BookEntity>, onAdd: () ->
     var query by rememberSaveable { mutableStateOf("") }
     var bookId by rememberSaveable { mutableStateOf("") }
     var tag by rememberSaveable { mutableStateOf("") }
+    var filtersExpanded by rememberSaveable { mutableStateOf(false) }
     // 三个条件是「与」关系：空条件视为不限制。搜索用 contains(query, true) 忽略大小写，
     // 这样英文/拼音内容不会被大小写影响
-    val filtered = cards.filter { (bookId.isBlank() || it.card.bookId == bookId) &&
+    val filtered = remember(cards, bookId, tag, query) { cards.filter { (bookId.isBlank() || it.card.bookId == bookId) &&
         (tag.isBlank() || it.tags.any { t -> t.name == tag }) &&
-        (query.isBlank() || it.card.content.contains(query, true)) }
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        (query.isBlank() || it.card.content.contains(query, true)) } }
+    val bookTitles = remember(books) { books.associate { it.id to it.title } }
+    val bookOptions = remember(books) { listOf("" to "全部书籍") + books.map { it.id to it.title } }
+    val tagOptions = remember(cards) { listOf("" to "全部标签") + cards.flatMap { it.tags }.map { it.name }.distinct().sorted().map { it to it } }
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("今天有什么值得带走？", style = MaterialTheme.typography.headlineSmall)
-                Button(onAdd) { Text("＋ 写一张卡片") }
-                Field("搜索正文", query, { query = it })
-                // 筛选项以空字符串表示「全部」，与 bookId/tag 的空值语义一致
-                SearchableChoice("书籍", bookId, listOf("" to "全部书籍") + books.map { it.id to it.title }) { bookId = it }
-                // 标签选项从现有卡片的标签里动态归并去重后排序，保证不会出现无结果的选项
-                SearchableChoice("标签", tag, listOf("" to "全部标签") + cards.flatMap { it.tags }.map { it.name }.distinct().sorted().map { it to it }) { tag = it }
-                if (bookId.isNotBlank() || tag.isNotBlank()) OutlinedButton({ bookId = ""; tag = "" }) { Text("清除书籍和标签筛选") }
+                Text("留下来的想法", style = MaterialTheme.typography.headlineSmall)
+                Text("共 ${cards.size} 张卡片 · 一句话也值得记录", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Button(onAdd, Modifier.fillMaxWidth().heightIn(min = 48.dp), shape = MaterialTheme.shapes.medium) { Text("＋ 写一张卡片") }
             }
         }
+        item {
+            Section("查找卡片") {
+                Field("搜索正文", query, { query = it })
+                val selectedFilters = listOf(bookId, tag).count { it.isNotBlank() }
+                TextButton({ filtersExpanded = !filtersExpanded }) {
+                    Text((if (filtersExpanded) "收起筛选" else "按书籍或标签筛选") +
+                        if (selectedFilters > 0) " · 已选 $selectedFilters 项" else "")
+                }
+                if (filtersExpanded) {
+                    // 空字符串表示全部；收起筛选时仍保留并提示已选条件。
+                    SearchableChoice("书籍", bookId, bookOptions) { bookId = it }
+                    SearchableChoice("标签", tag, tagOptions) { tag = it }
+                }
+                if (bookId.isNotBlank() || tag.isNotBlank()) TextButton({ bookId = ""; tag = "" }) { Text("清除书籍和标签筛选") }
+            }
+        }
+        item { Text("${filtered.size} 张卡片", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         // 两种空状态文案不同：一张卡片都没有 vs 筛选后无结果，后者提示清除条件
         if (filtered.isEmpty()) item { Section("还没有符合条件的卡片") {
             Text(if (cards.isEmpty()) "一句话也值得留下。" else "试着清除搜索或筛选条件。")
             OutlinedButton(onAdd) { Text("记下一个想法") }
         } }
         items(filtered, key = { it.card.id }) { item ->
-            OutlinedCard(onClick = { onOpen(item.card.id) }, modifier = Modifier.fillMaxWidth()) {
+            Card(onClick = { onOpen(item.card.id) }, modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)) {
                 Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(item.card.title, style = MaterialTheme.typography.titleMedium)
+                    Text(item.card.title, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
                     // 只裁切列表预览，打开编辑页仍能看到数据库中的完整正文
-                    Text(cardPreview(item.card.content), maxLines = 3, overflow = TextOverflow.Ellipsis)
-                    // 元信息行：关联书名、标签、创建日期，用「·」连接并自动跳过空项
-                    val book = books.find { it.id == item.card.bookId }?.title
-                    Text(listOfNotNull(book, item.tags.takeIf { it.isNotEmpty() }?.joinToString(" ") { "#${it.name}" },
-                        Instant.ofEpochMilli(item.card.createdAt).atZone(ZoneId.systemDefault()).toLocalDate().toString()).joinToString(" · "),
-                        style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(cardPreview(item.card.content), maxLines = 3, overflow = TextOverflow.Ellipsis,
+                        style = MaterialTheme.typography.bodyMedium)
+                    // 书名、标签、日期分层显示，长文本只裁切列表预览。
+                    val book = bookTitles[item.card.bookId]
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    book?.let { Text(it, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                        style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.secondary) }
+                    if (item.tags.isNotEmpty()) Text(item.tags.joinToString("  ") { "#${it.name}" },
+                        maxLines = 1, overflow = TextOverflow.Ellipsis,
+                        style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(Instant.ofEpochMilli(item.card.createdAt).atZone(ZoneId.systemDefault()).toLocalDate().toString(),
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }

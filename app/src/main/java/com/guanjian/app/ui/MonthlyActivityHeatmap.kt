@@ -6,11 +6,14 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
@@ -41,7 +44,8 @@ fun MonthlyActivityHeatmap(events: List<ActivityEventEntity>) {
         it.type == "PROGRESS" && runCatching { YearMonth.from(LocalDate.parse(it.date)) }.getOrNull() == month
     }.map { it.sourceId }.filter { it.isNotBlank() }.distinct().size }
 
-    Section("本月学习足迹", "颜色越深，表示当天的学习投入越多。") {
+    Section("本月学习足迹", "颜色越深，表示当天的学习投入越多。",
+        icon = Icons.Default.CalendarMonth, accent = MaterialTheme.colorScheme.tertiary) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween) {
             TextButton({
@@ -99,22 +103,22 @@ private fun RowScope.ActivityDayCell(day: MonthlyActivityDay, selected: Boolean,
     Box(
         Modifier.weight(1f).aspectRatio(1f)
             .border(if (selected) 2.dp else 1.dp,
-                if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outlineVariant, shape)
+                if (selected) MaterialTheme.colorScheme.onTertiaryContainer else MaterialTheme.colorScheme.outlineVariant, shape)
             .background(activityColor(day.level), shape)
             .semantics { contentDescription = detail }
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
         Text(day.date.dayOfMonth.toString(), style = MaterialTheme.typography.labelSmall,
-            color = if (day.level >= 3) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface)
+            color = if (day.level >= 3) MaterialTheme.colorScheme.onTertiary else MaterialTheme.colorScheme.onSurface)
     }
 }
 
 @Composable
 private fun activityColor(level: Int): Color = when (level) {
     0 -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
-    1 -> MaterialTheme.colorScheme.primaryContainer
-    2 -> MaterialTheme.colorScheme.primary.copy(alpha = 0.45f)
-    3 -> MaterialTheme.colorScheme.primary.copy(alpha = 0.72f)
-    else -> MaterialTheme.colorScheme.primary
+    1 -> MaterialTheme.colorScheme.tertiaryContainer
+    2 -> lerp(MaterialTheme.colorScheme.tertiaryContainer, MaterialTheme.colorScheme.tertiary, 0.33f)
+    3 -> lerp(MaterialTheme.colorScheme.tertiaryContainer, MaterialTheme.colorScheme.tertiary, 0.66f)
+    else -> MaterialTheme.colorScheme.tertiary
 }

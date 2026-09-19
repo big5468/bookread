@@ -5,46 +5,71 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
 /**
  * 浅色配色。
  *
- * 取色思路：整体偏纸张与木质色调，低饱和、低对比压力，适合长时间阅读场景。
- * 主色是偏橄榄的绿（0xFF596743），背景接近米白（0xFFFAF8F2）而非纯白，
- * 减少在图书馆灯光下的刺眼感。
+ * 浅灰紫背景与白色卡片；明亮的珊瑚橙强调主要操作，天蓝色用于统计。
+ * 沿用参考图的亮色调，绿色用于本地回顾和历史记录。
  */
 private val LightColors = lightColorScheme(
-    primary = Color(0xFF4CAF50), onPrimary = Color.White,
-    primaryContainer = Color(0xFFDEE7CD), onPrimaryContainer = Color(0xFF243018),
-    secondary = Color(0xFF6D8042), secondaryContainer = Color(0xFFBAE7C2),
-    background = Color(0xFFF6F5F0), surface = Color(0xFFFFFDF7),
-    surfaceVariant = Color(0xFFE5E9DF), onSurface = Color(0xFF1B1C19),
-    onSurfaceVariant = Color(0xFF454A42), outline = Color(0xFF737A6E),
-    outlineVariant = Color(0xFFC4C9BD), surfaceContainer = Color(0xFFF0F1EA)
+    primary = Color(0xFFFF725B), onPrimary = Color.White,
+    primaryContainer = Color(0xFFFFE4DF), onPrimaryContainer = Color(0xFF632014),
+    secondary = Color(0xFF24AFE3), onSecondary = Color.White,
+    secondaryContainer = Color(0xFFDDF4FC), onSecondaryContainer = Color(0xFF073544),
+    tertiary = Color(0xFF6AAE7B), onTertiary = Color.White,
+    tertiaryContainer = Color(0xFFE1F2E4), onTertiaryContainer = Color(0xFF163C22),
+    background = Color(0xFFF7F6FC), surface = Color(0xFFFFFFFF),
+    surfaceVariant = Color(0xFFF1F0F7), onSurface = Color(0xFF202128),
+    onSurfaceVariant = Color(0xFF858793), outline = Color(0xFFB9BBC5),
+    outlineVariant = Color(0xFFE9E8F0), surfaceContainer = Color(0xFFFFFFFF),
+    surfaceContainerLow = Color(0xFFFBFAFF), surfaceContainerHigh = Color(0xFFF0EFF6)
 )
 
 /**
  * 深色配色。
  *
- * 背景用偏深的暖灰（0xFF191C17）而不是纯黑，避免深色模式下的「光晕」与视觉疲劳。
- * 主色相应提亮为浅绿（0xFFBECEA6）以保证在深底上的可读对比度。
+ * 炭灰色背景配合提亮的珊瑚色、蓝色和绿色，保留浅色模式的功能区分。
  */
 private val DarkColors = darkColorScheme(
-    primary = Color(0xFFBECEA6), onPrimary = Color(0xFF29371B),
-    primaryContainer = Color(0xFF3E4B31), onPrimaryContainer = Color(0xFFDEE7CD),
-    secondary = Color(0xFFE7BE9B), secondaryContainer = Color(0xFF5B402D),
-    background = Color(0xFF191C17), surface = Color(0xFF191C17),
-    surfaceVariant = Color(0xFF40483C), onSurface = Color(0xFFE5E5DB),
-    onSurfaceVariant = Color(0xFFC3C8BA), outline = Color(0xFF8D9587),
-    outlineVariant = Color(0xFF40483C), surfaceContainer = Color(0xFF22261F)
+    primary = Color(0xFFFFB4A7), onPrimary = Color(0xFF5B190E),
+    primaryContainer = Color(0xFF7D2D20), onPrimaryContainer = Color(0xFFFFDAD3),
+    secondary = Color(0xFF83D3F3), onSecondary = Color(0xFF003544),
+    secondaryContainer = Color(0xFF164D60), onSecondaryContainer = Color(0xFFC5EEFF),
+    tertiary = Color(0xFF9FD5AA), onTertiary = Color(0xFF073917),
+    tertiaryContainer = Color(0xFF315C3C), onTertiaryContainer = Color(0xFFBDEFC6),
+    background = Color(0xFF17171C), surface = Color(0xFF222228),
+    surfaceVariant = Color(0xFF2B2B33), onSurface = Color(0xFFE7E1E5),
+    onSurfaceVariant = Color(0xFFC9C3CB), outline = Color(0xFF938E98),
+    outlineVariant = Color(0xFF3D3B44), surfaceContainer = Color(0xFF222228),
+    surfaceContainerLow = Color(0xFF1D1D23), surfaceContainerHigh = Color(0xFF2C2C34)
 )
 
 /** 统一圆角尺寸，让卡片、输入框和底部选择页保持同一视觉节奏。 */
 private val GuanJianShapes = Shapes(
-    small = RoundedCornerShape(10.dp),
-    medium = RoundedCornerShape(16.dp),
-    large = RoundedCornerShape(24.dp)
+    extraSmall = RoundedCornerShape(8.dp),
+    small = RoundedCornerShape(12.dp),
+    medium = RoundedCornerShape(18.dp),
+    large = RoundedCornerShape(24.dp),
+    extraLarge = RoundedCornerShape(28.dp)
+)
+
+private val GuanJianTypography = Typography(
+    headlineLarge = TextStyle(fontWeight = FontWeight.Bold, fontSize = 30.sp, lineHeight = 38.sp),
+    headlineMedium = TextStyle(fontWeight = FontWeight.Bold, fontSize = 26.sp, lineHeight = 34.sp),
+    headlineSmall = TextStyle(fontWeight = FontWeight.Bold, fontSize = 22.sp, lineHeight = 30.sp),
+    titleLarge = TextStyle(fontWeight = FontWeight.Bold, fontSize = 20.sp, lineHeight = 28.sp),
+    titleMedium = TextStyle(fontWeight = FontWeight.SemiBold, fontSize = 17.sp, lineHeight = 24.sp),
+    titleSmall = TextStyle(fontWeight = FontWeight.SemiBold, fontSize = 15.sp, lineHeight = 22.sp),
+    bodyLarge = TextStyle(fontWeight = FontWeight.Normal, fontSize = 16.sp, lineHeight = 24.sp),
+    bodyMedium = TextStyle(fontWeight = FontWeight.Normal, fontSize = 14.sp, lineHeight = 21.sp),
+    bodySmall = TextStyle(fontWeight = FontWeight.Normal, fontSize = 12.sp, lineHeight = 18.sp),
+    labelLarge = TextStyle(fontWeight = FontWeight.SemiBold, fontSize = 14.sp, lineHeight = 20.sp),
+    labelMedium = TextStyle(fontWeight = FontWeight.Medium, fontSize = 12.sp, lineHeight = 18.sp)
 )
 
 /**
@@ -57,5 +82,10 @@ private val GuanJianShapes = Shapes(
 @Composable
 fun GuanJianTheme(mode: String = "SYSTEM", content: @Composable () -> Unit) {
     val dark = when (mode) { "LIGHT" -> false; "DARK" -> true; else -> isSystemInDarkTheme() }
-    MaterialTheme(colorScheme = if (dark) DarkColors else LightColors, shapes = GuanJianShapes, content = content)
+    MaterialTheme(
+        colorScheme = if (dark) DarkColors else LightColors,
+        shapes = GuanJianShapes,
+        typography = GuanJianTypography,
+        content = content
+    )
 }

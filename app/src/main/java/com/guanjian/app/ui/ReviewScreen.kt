@@ -2,9 +2,20 @@ package com.guanjian.app.ui
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.MenuBook
+import androidx.compose.material.icons.filled.Timeline
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.unit.dp
+import java.time.format.DateTimeFormatter
 import com.guanjian.app.data.*
 import com.guanjian.app.domain.*
 import java.time.LocalDate
@@ -28,7 +39,7 @@ import java.time.LocalDate
 @Composable
 fun ReviewScreen(week: String, onWeek: (String) -> Unit, goal: WeeklyGoalEntity?, events: List<ActivityEventEntity>,
     review: WeeklyReviewEntity?, onGoal: () -> Unit, onMonthly: () -> Unit, onAiTools: () -> Unit) {
-    val start = LocalDate.parse(week)
+    val start = remember(week) { LocalDate.parse(week) }
     // 输入不变时持有统计与文字摘要，避免按钮、滚动等重组重复遍历事件。
     val statEvents = remember(events) { events.map { StatEvent(it.date, it.type, it.pages, it.focusMillis, it.sourceId) } }
     val stats = remember(start, statEvents) { weeklyStats(start, statEvents) }
@@ -37,27 +48,56 @@ fun ReviewScreen(week: String, onWeek: (String) -> Unit, goal: WeeklyGoalEntity?
     val target = goal ?: WeeklyGoalEntity(weekStartDate = week)
     PageColumn {
         Text("给这一周一个回望", style = MaterialTheme.typography.headlineSmall)
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            TextButton({ onWeek(start.minusWeeks(1).toString()) }) { Text("上一周") }
-            // 「回到本周」始终以真实的今天为基准，而不是在当前查看周上加减
-            TextButton({ onWeek(weekStart(LocalDate.now()).toString()) }) { Text("回到本周") }
-            TextButton({ onWeek(start.plusWeeks(1).toString()) }) { Text("下一周") }
+        Surface(shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.surface) {
+            Row(Modifier.fillMaxWidth().padding(4.dp), verticalAlignment = Alignment.CenterVertically) {
+                IconButton({ onWeek(start.minusWeeks(1).toString()) }) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, "上一周") }
+                Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("${start.format(DateTimeFormatter.ofPattern("yyyy年M月d日"))} — ${start.plusDays(6).format(DateTimeFormatter.ofPattern("M月d日"))}",
+                        style = MaterialTheme.typography.labelLarge, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                    // 「回到本周」始终以真实的今天为基准，而不是在当前查看周上加减。
+                    TextButton({ onWeek(weekStart(LocalDate.now()).toString()) }) { Text("回到本周") }
+                }
+                IconButton({ onWeek(start.plusWeeks(1).toString()) }) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, "下一周") }
+            }
         }
-        Text("$week — ${start.plusDays(6)}")
-        Section("一周目标", "到馆或学习次数按有效记录日计算，一天最多一次。") {
+        Section("一周目标", "到馆或学习次数按有效记录日计算，一天最多一次。",
+            icon = Icons.Default.BarChart, accent = MaterialTheme.colorScheme.tertiary) {
             // 四项指标对应需求列出的四个周目标维度
             GoalProgress("到馆或学习", stats.activeDays.toLong(), target.targetStudyCount, "次")
             GoalProgress("专注", stats.focusMinutes, target.targetFocusMinutes, "分钟")
             GoalProgress("阅读", stats.readingPages.toLong(), target.targetReadingPages, "页")
             GoalProgress("卡片", stats.cards.toLong(), target.targetCardCount, "张")
-            Text("活跃 ${stats.activeDays} 天 · 完成 ${stats.completedPlans} 项计划")
-            OutlinedButton(onGoal) { Text("编辑这一周的目标") }
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            Text("活跃 ${stats.activeDays} 天 · 完成 ${stats.completedPlans} 项计划",
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            TextButton(onGoal) { Text("编辑这一周的目标") }
         }
         // 本地摘要无条件展示——这是「AI 不可用也不影响基础回顾」的落点
-        Section("本地回顾 · 随时可用") { Text(summary) }
-        Section("继续回顾", "详细图表和 AI 功能在需要时再打开，让本页保持轻快。") {
-            OutlinedButton(onMonthly, Modifier.fillMaxWidth()) { Text("查看月度学习足迹") }
-            OutlinedButton(onAiTools, Modifier.fillMaxWidth()) { Text(if (review?.aiSummary == null) "AI 回顾与设置" else "查看已保存的 AI 回顾") }
+        Section("本地回顾 · 随时可用", icon = Icons.Default.MenuBook,
+            accent = MaterialTheme.colorScheme.tertiary) { Text(summary) }
+        Section("更多回顾", "回看每天的投入，整理下一步的方向。",
+            icon = Icons.Default.Timeline, accent = MaterialTheme.colorScheme.primary) {
+            ReviewEntry("月度学习足迹", "按日期查看学习记录", Icons.Default.CalendarMonth, onMonthly,
+                accent = MaterialTheme.colorScheme.tertiary)
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            ReviewEntry("AI 回顾与设置", if (review?.aiSummary == null) "可选的整理助手" else "查看已保存的 AI 回顾",
+                Icons.Default.AutoAwesome, onAiTools)
+        }
+    }
+}
+
+@Composable
+private fun ReviewEntry(title: String, subtitle: String, icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit,
+    accent: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.primary) {
+    Surface(onClick = onClick, shape = MaterialTheme.shapes.small, color = MaterialTheme.colorScheme.surface) {
+        Row(Modifier.fillMaxWidth().heightIn(min = 64.dp).padding(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(icon, null, tint = accent)
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(title, style = MaterialTheme.typography.titleSmall)
+                Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -69,7 +109,7 @@ fun ReviewAiToolsScreen(review: WeeklyReviewEntity?, onAi: () -> Unit, onExplore
         Text("AI 回顾", style = MaterialTheme.typography.headlineMedium)
         Text("AI 完全可选，本地统计不受影响。", color = MaterialTheme.colorScheme.onSurfaceVariant)
         review?.aiSummary?.let { Section("已保存的 AI 回顾") { Text(it) } }
-        Section("AI 助手 · 可选") {
+        Section("AI 助手 · 可选", icon = Icons.Default.AutoAwesome, accent = MaterialTheme.colorScheme.primary) {
             Button(onAi, Modifier.fillMaxWidth()) { Text("生成 AI 周回顾") }
             OutlinedButton(onExplore, Modifier.fillMaxWidth()) { Text("寻找下一步探索方向") }
             TextButton(onAiSettings, Modifier.fillMaxWidth()) { Text("AI 设置") }
@@ -87,8 +127,17 @@ fun ReviewAiToolsScreen(review: WeeklyReviewEntity?, onAi: () -> Unit, onExplore
  */
 @Composable
 private fun GoalProgress(label: String, value: Long, target: Int, unit: String) {
-    Text("$label：$value / $target $unit")
-    LinearProgressIndicator(progress = { if (target <= 0) 0f else (value.toFloat() / target).coerceIn(0f, 1f) }, modifier = Modifier.fillMaxWidth())
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(label, Modifier.weight(1f), style = MaterialTheme.typography.titleSmall)
+            Text(if (target <= 0) "$value $unit · 未设目标" else "$value / $target $unit",
+                Modifier.weight(2f), textAlign = androidx.compose.ui.text.style.TextAlign.End,
+                style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        LinearProgressIndicator(progress = { if (target <= 0) 0f else (value.toFloat() / target).coerceIn(0f, 1f) },
+            modifier = Modifier.fillMaxWidth().height(6.dp), color = MaterialTheme.colorScheme.tertiary,
+            trackColor = MaterialTheme.colorScheme.tertiaryContainer)
+    }
 }
 
 /**

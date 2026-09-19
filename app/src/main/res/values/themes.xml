@@ -2,6 +2,6 @@
     <style name="Theme.GuanJian" parent="android:style/Theme.Material.Light.NoActionBar">
         <item name="android:fontFamily">sans</item>
         <item name="android:windowLightStatusBar">true</item>
-        <item name="android:colorAccent">#6B7755</item>
+        <item name="android:colorAccent">#FF725B</item>
     </style>
 </resources>

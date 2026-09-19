@@ -12,7 +12,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavType
 import androidx.navigation.compose.*
@@ -72,23 +74,59 @@ fun LibraryApp(vm: LibraryViewModel) {
         Triple("cards", "卡片", Icons.Default.Notes), Triple("review", "回顾", Icons.Default.Insights))
     // root 为真表示当前在根目的地：决定是否显示底栏与返回箭头
     val root = tabs.any { it.first == route }
+    val pageTitle = when (route) {
+        "today" -> "今天"
+        "books" -> "书墙"
+        "cards" -> "卡片"
+        "review" -> "回顾"
+        "review-month" -> "学习足迹"
+        "review-ai" -> "AI 回顾"
+        "ai-settings" -> "AI 设置"
+        "book-lookup" -> "搜索书籍"
+        "focus?book={book}" -> "专注"
+        "card/{id}?book={book}" -> if (entry?.arguments?.getString("id") == "new") "记录这一刻" else "编辑卡片"
+        else -> "馆间"
+    }
 
     // 把 ViewModel 的一次性提示接到 Snackbar 上
     LaunchedEffect(vm) { vm.messages.collect { snackbar.showSnackbar(it) } }
 
     GuanJianTheme("SYSTEM") {
         Scaffold(
-            topBar = { TopAppBar(title = { Text(if (root) "我的 · ${tabs.find { it.first == route }?.second}" else "馆间") },
+            containerColor = MaterialTheme.colorScheme.background,
+            topBar = { CenterAlignedTopAppBar(title = { Text(pageTitle, style = MaterialTheme.typography.titleLarge) },
                 // 非根页面显示返回箭头；AI 设置入口统一放在回顾页。
-                navigationIcon = { if (!root) IconButton(if (route == "ai" || route == "book-lookup") closeChildPage else ({ nav.popBackStack(); Unit })) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回") } },
-                actions = { }) },
-            bottomBar = { if (root) NavigationBar {
+                navigationIcon = {
+                    if (root) Surface(Modifier.padding(start = 12.dp).size(40.dp), shape = MaterialTheme.shapes.medium,
+                        color = MaterialTheme.colorScheme.surfaceVariant) {
+                        Box(contentAlignment = androidx.compose.ui.Alignment.Center) {
+                            Icon(Icons.Default.LocalLibrary, null, tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(22.dp))
+                        }
+                    }
+                    else IconButton(if (route == "ai" || route == "book-lookup") closeChildPage else ({ nav.popBackStack(); Unit })) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回")
+                    }
+                },
+                actions = { },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
+            ) },
+            bottomBar = { if (root) Column {
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                NavigationBar(containerColor = MaterialTheme.colorScheme.surface, tonalElevation = 0.dp) {
                 tabs.forEach { (key, title, icon) -> NavigationBarItem(selected = route == key,
                     // popUpTo("today") + saveState/restoreState：切换标签时保留各页滚动位置，
                     // 同时避免回退栈无限增长（点「今天」再点「书墙」不会堆积历史）
                     onClick = { nav.navigate(key) { popUpTo("today") { saveState = true }; launchSingleTop = true; restoreState = true } },
-                    icon = { Icon(icon, title) }, label = { Text(title) }) }
-            } }, snackbarHost = { SnackbarHost(snackbar) }
+                    icon = { Icon(icon, title) }, label = { Text(title) },
+                    colors = NavigationBarItemDefaults.colors(
+                        selectedIconColor = MaterialTheme.colorScheme.primary,
+                        selectedTextColor = MaterialTheme.colorScheme.primary,
+                        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        indicatorColor = Color.Transparent
+                    ))
+                }
+            } } }, snackbarHost = { SnackbarHost(snackbar) }
         ) { padding ->
             // imePadding 让内容随输入法上推，配合 Activity 的 adjustResize 使用
             NavHost(
@@ -190,8 +228,18 @@ fun LibraryApp(vm: LibraryViewModel) {
                     FocusScreen(state.active, state.books, state.plans.filter { it.date == state.today }, back.arguments?.getString("book"), vm.repo.clock, state.busy,
                         onStart = { type, book -> vm.act("专注已开始") { vm.repo.startFocus(type, book) } },
                         onPause = { vm.act("已暂停") { vm.repo.pauseFocus() } }, onResume = { vm.act("继续专注") { vm.repo.resumeFocus() } },
-                        // 结束时不弹提示：紧接着会进入填写总结的界面，多余提示反而干扰
-                        onEnd = { vm.act("") { vm.repo.prepareFinish() } },
+                        // 先保存并清除当前专注，再一次性打开新建卡片；放弃卡片不会影响已保存的时间。
+                        onEnd = {
+                            state.active?.let { focus ->
+                                val cardRoute = focus.bookId?.let { "card/new?book=$it" } ?: "card/new"
+                                vm.act("专注已保存，可以留下一张卡片", {
+                                    nav.popBackStack()
+                                    nav.navigate(cardRoute)
+                                }) {
+                                    vm.repo.finishFocus(focus.id)
+                                }
+                            }
+                        },
                         onSwitch = { type, book -> vm.act("已保存当前任务并开始新计时") { vm.repo.switchFocus(type, book) } },
                         onSave = { id, start, end, reflection, plans -> vm.act("专注已保存，今天的记录已更新", { nav.popBackStack() }) { vm.repo.finishFocus(id, end, reflection, plans, start) } })
                 }
