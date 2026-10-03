@@ -11,6 +11,7 @@ import com.guanjian.app.ai.*
 import com.guanjian.app.books.BookMetadata
 import com.guanjian.app.books.BookMetadataResult
 import com.guanjian.app.data.*
+import com.guanjian.app.domain.FocusClock
 import com.guanjian.app.security.CredentialStore
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.first
@@ -86,6 +87,21 @@ class LibraryViewModelTest {
 
     /** 清理 ViewModel、关闭数据库、还原主调度器，避免用例之间互相污染。 */
     @After fun tearDown() { store.clear(); db.close(); Dispatchers.resetMain() }
+
+    @Test fun foregroundHeartbeatReconcilesExpiredFocus() = runBlocking {
+        val now = repo.clock.wallMillis()
+        val active = ActiveFocusEntity(activityType = "自习一会", startedAt = now - 2L * 24 * 60 * 60_000,
+            zoneId = repo.clock.zone().id,
+            clock = FocusClock.start(now - 2L * 24 * 60 * 60_000, 0, repo.clock.bootCount() + 1))
+        db.dao().putActive(active)
+
+        vm.startFocusHeartbeat()
+        val session = withTimeout(3_000) { repo.sessions.first { it.isNotEmpty() } }.single()
+        assertEquals(active.id, session.id)
+        assertEquals(20 * 60_000L, session.durationMillis)
+        assertNull(repo.activeFocus.first())
+        vm.stopFocusHeartbeat()
+    }
 
     /**
      * 保存书籍会更新界面状态；书名非法时报错且不落库。

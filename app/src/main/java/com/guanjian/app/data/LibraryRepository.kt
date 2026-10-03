@@ -254,6 +254,26 @@ class LibraryRepository(private val db: LibraryDatabase, val clock: LibraryClock
         startFocus(activityType, bookId)
     }
 
+    /**
+     * 应用在前台时定期续上活跃时间；超过 20 分钟未观察到前台活动则自动结算。
+     * 被系统杀掉的进程无法准时执行代码，但持久化的截止时间能保证重开时不会多计。
+     * @return 是否自动结束了一次专注
+     */
+    suspend fun refreshFocusActivity(): Boolean = db.withTransaction {
+        val active = dao.active() ?: return@withTransaction false
+        if (!active.clock.running) return@withTransaction false
+        val wall = clock.wallMillis()
+        val elapsed = clock.elapsedMillis()
+        val boot = clock.bootCount()
+        if (active.clock.isExpired(wall, elapsed, boot)) {
+            finishFocus(active.id)
+            true
+        } else {
+            dao.putActive(active.copy(clock = active.clock.observe(wall, elapsed, boot)))
+            false
+        }
+    }
+
     /** 用户主动暂停：结算当前段并落库，但不进入结束流程。 */
     suspend fun pauseFocus() = db.withTransaction { pauseInternal(false) }
 
@@ -326,7 +346,7 @@ class LibraryRepository(private val db: LibraryDatabase, val clock: LibraryClock
         require(start == null || start >= 0) { "起始页不能为负数" }
         require(endPage == null || endPage >= (start ?: 0)) { "结束页不能小于起始页" }
         validatePages(endPage, book?.totalPages)
-        require(book?.totalPages == null || start == null || start <= book.totalPages) { "起始页不能超过总页数" }
+        require(endPage == null || book?.totalPages == null || start == null || start <= book.totalPages) { "起始页不能超过总页数" }
         // 先校验所有关联计划都存在，避免「时长已记、计划却标不上」的半成品状态
         completedPlanIds.distinct().forEach { requireNotNull(dao.plan(it)) { "关联计划已不存在" } }
         pauseInternal(true)

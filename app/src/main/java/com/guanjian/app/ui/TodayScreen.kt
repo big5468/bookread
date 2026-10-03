@@ -41,7 +41,7 @@ fun TodayScreen(today: String, stats: WeekStats, plans: List<DailyPlanEntity>, e
     PageColumn {
         Text(LocalDate.parse(today).format(DateTimeFormatter.ofPattern("M月d日 · EEEE", java.util.Locale.CHINA)),
             style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-        Text("留一点时间给自己", style = MaterialTheme.typography.headlineSmall)
+        Text("阅读，去收获", style = MaterialTheme.typography.headlineSmall)
         Text(if (active == null) "从一段专注开始，慢慢积累。" else if (active.clock.running) "有一段专注正在进行。" else "有一段专注已暂停，随时可以继续。",
             style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Button(onFocus, Modifier.fillMaxWidth().heightIn(min = 56.dp), shape = MaterialTheme.shapes.medium) {
@@ -55,17 +55,17 @@ fun TodayScreen(today: String, stats: WeekStats, plans: List<DailyPlanEntity>, e
             Text("快速记卡片")
         }
         Section("这一周", "你的本地学习概览", icon = Icons.Default.QueryStats, accent = MaterialTheme.colorScheme.tertiary) {
-            // 三个关键指标并排：到馆/学习天数、专注分钟、卡片数
+            // 三个关键指标并排：学习天数、专注分钟、卡片数
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Metric("${stats.activeDays} 天", "到馆 / 学习", Modifier.weight(1f))
+                Metric("${stats.activeDays} 天", "学习", Modifier.weight(1f))
                 Metric("${stats.focusMinutes} 分", "专注时间", Modifier.weight(1f))
                 Metric("${stats.cards} 张", "学习卡片", Modifier.weight(1f))
             }
         }
-        Section("今日小计划", "小一点，也可以完成。", icon = Icons.Default.Checklist,
+        Section("今日计划", "一份计划，可视化收获", icon = Icons.Default.Checklist,
             accent = MaterialTheme.colorScheme.primary) {
             // 空状态给出明确的下一步引导，而不是只显示「暂无数据」
-            if (plans.isEmpty()) Text("今天想找一本书，还是安静自习一会儿？")
+            if (plans.isEmpty()) Text("当下有什么安排呢？放在TODO不会忘记")
             plans.forEach { plan ->
                 Surface(Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.small, color = MaterialTheme.colorScheme.surfaceVariant) {
                     Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -82,7 +82,7 @@ fun TodayScreen(today: String, stats: WeekStats, plans: List<DailyPlanEntity>, e
                     }
                 }
             }
-            TextButton(onPlan) { Text("＋ 添加小计划") }
+            TextButton(onPlan) { Text("＋ 添加计划") }
         }
         Section("今天留下的记录", icon = Icons.Default.History, accent = MaterialTheme.colorScheme.tertiary) {
             // 空状态解释「记录是怎么产生的」，因为本应用没有手动签到，用户需要知道规则
@@ -122,7 +122,7 @@ fun TodayScreen(today: String, stats: WeekStats, plans: List<DailyPlanEntity>, e
  */
 @Composable
 fun PlanEditor(today: String, busy: Boolean, onSave: (DailyPlanEntity) -> Unit) {
-    val templates = listOf("找一本书", "阅读一定页数", "自习一定分钟", "写一张卡片", "自定义任务")
+    val templates = listOf("探索书籍", "阅读到哪", "自习多久", "整理一下知识", "自定义任务")
     // 默认落在「自习一定分钟」上，因为这是图书馆场景最常用的计划
     var type by rememberSaveable { mutableStateOf(templates[2]) }
     var title by rememberSaveable { mutableStateOf("安静自习一会儿") }
@@ -131,15 +131,15 @@ fun PlanEditor(today: String, busy: Boolean, onSave: (DailyPlanEntity) -> Unit) 
     // 表单错误就地展示，不走 Snackbar，避免与输入框分离导致用户没注意到
     var error by remember { mutableStateOf<String?>(null) }
     PageColumn {
-        Text("给今天一个小计划", style = MaterialTheme.typography.headlineSmall)
+        Text("当前有哪些目标", style = MaterialTheme.typography.headlineSmall)
         Choice("模板", type, templates.map { it to it }) {
             type = it
             // 选模板即预填三个字段，减少输入量；「自定义任务」则清空让用户自己写
             when (it) {
-                templates[0] -> { title = "找到一本想读的书"; target = "1"; unit = "次" }
+                templates[0] -> { title = "找到想看的书籍"; target = "1"; unit = "次" }
                 templates[1] -> { title = "读几页书"; target = "20"; unit = "页" }
-                templates[2] -> { title = "安静自习一会儿"; target = "25"; unit = "分钟" }
-                templates[3] -> { title = "写下一张卡片"; target = "1"; unit = "张" }
+                templates[2] -> { title = "自习一会"; target = "25"; unit = "分钟" }
+                templates[3] -> { title = "整理知识"; target = "1"; unit = "张" }
                 else -> { title = ""; target = ""; unit = "次" }
             }
         }

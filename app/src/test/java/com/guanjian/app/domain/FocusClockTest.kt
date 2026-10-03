@@ -16,6 +16,26 @@ import org.junit.Test
  * - `boot` 开机次数（决定用哪一个）
  */
 class FocusClockTest {
+    @Test fun unattendedRunningClockStopsAtTwentyMinutes() {
+        val running = FocusClock.start(wall = 100_000, elapsed = 10_000, boot = 1)
+        val twoDays = 2L * 24 * 60 * 60 * 1_000
+        assertEquals(1_200_000L, running.duration(100_000 + twoDays, 10_000 + twoDays, 1))
+        assertEquals(1_300_000L, running.pause(100_000 + twoDays, 10_000 + twoDays, 1).pausedAtWall)
+    }
+
+    @Test fun foregroundObservationsKeepLongFocusRunning() {
+        val start = FocusClock.start(wall = 100_000, elapsed = 10_000, boot = 1)
+        val observed = start.observe(wall = 1_000_000, elapsed = 910_000, boot = 1)
+        assertEquals(1_800_000L, observed.duration(1_900_000, 1_810_000, 1))
+        assertFalse(observed.isExpired(1_900_000, 1_810_000, 1))
+    }
+
+    @Test fun rebootStillCapsUnattendedFocusByWallTime() {
+        val running = FocusClock.start(wall = 100_000, elapsed = 10_000, boot = 1)
+        assertEquals(1_200_000L, running.duration(9_000_000, 5_000, 2))
+        assertTrue(running.isExpired(9_000_000, 5_000, 2))
+    }
+
     /**
      * 暂停期间的时间不计入专注时长，且暂停/继续能正确累计。
      *

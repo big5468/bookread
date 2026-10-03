@@ -110,6 +110,7 @@ class LibraryViewModel(val repo: LibraryRepository, private val settingsStore: S
     val bookLookup = mutableBookLookup.asStateFlow()
     private var bookLookupJob: Job? = null
     private var bookSelectionJob: Job? = null
+    private var focusHeartbeatJob: Job? = null
 
     /**
      * 一次已构造好、等待用户确认的 AI 请求。
@@ -146,6 +147,29 @@ class LibraryViewModel(val repo: LibraryRepository, private val settingsStore: S
          * 30 秒的粒度对用户体验足够，同时开销可忽略。
          */
         viewModelScope.launch { while (isActive) { mutableState.update { it.copy(today = repo.clock.date()) }; delay(30_000) } }
+    }
+
+    /** 前台每 15 秒保存一次活跃点；离开前台后停止续期，最多再计 20 分钟。 */
+    fun startFocusHeartbeat() {
+        focusHeartbeatJob?.cancel()
+        focusHeartbeatJob = viewModelScope.launch {
+            while (isActive) {
+                try {
+                    if (repo.refreshFocusActivity()) mutableMessages.emit("离开应用超过20分钟，专注已自动保存")
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    mutableMessages.emit("无法更新专注计时，请重新打开应用。")
+                    break
+                }
+                delay(15_000)
+            }
+        }
+    }
+
+    fun stopFocusHeartbeat() {
+        focusHeartbeatJob?.cancel()
+        focusHeartbeatJob = null
     }
 
     /**

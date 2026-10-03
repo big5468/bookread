@@ -149,7 +149,7 @@ data class ActivityEventEntity(@PrimaryKey val id: String = newId(), val date: S
  * 用 [singleton] 固定为 1 的单行表来表达「同一时刻只允许一次专注在进行」，
  * 让数据库层直接承担该约束，而不是只靠 UI 禁用按钮。
  *
- * [clock] 用 @Embedded(prefix = "clock_") 把 FocusClock 的 8 个字段
+ * [clock] 用 @Embedded(prefix = "clock_") 把 FocusClock 的计时和最后活跃字段
  * 平铺成 clock_running、clock_segmentWall 等列。这样计时状态与业务字段
  * 在同一行内一起原子读写，不需要额外的一张表或一次 JOIN。
  *

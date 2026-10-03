@@ -43,6 +43,52 @@ class LibraryRepositoryTest {
 
     @After fun close() = db.close()
 
+    @Test fun killedAppFinishesAtLastObservationPlusTwentyMinutes() = runBlocking {
+        val id = repo.startFocus("阅读")
+        clock.advance(600_000)
+        repo.refreshFocusActivity()
+        clock.advance(2L * 24 * 60 * 60 * 1_000)
+        repo = LibraryRepository(db, clock)
+        repo.refreshFocusActivity()
+
+        assertNull(repo.activeFocus.first())
+        val session = repo.sessions.first().single()
+        assertEquals(id, session.id)
+        assertEquals(1_800_000L, session.durationMillis)
+        assertEquals(clock.wall - 2L * 24 * 60 * 60 * 1_000 + 1_200_000L, session.endedAt)
+        assertEquals(1_800_000L, repo.events.first().single { it.type == "FOCUS_COMPLETED" }.focusMillis)
+        repo.refreshFocusActivity()
+        assertEquals(1, repo.sessions.first().size)
+    }
+
+    @Test fun returningBeforeDeadlineContinuesAndPausedFocusDoesNotAutoFinish() = runBlocking {
+        val id = repo.startFocus("自习一会")
+        clock.advance(19 * 60_000L)
+        repo.refreshFocusActivity()
+        assertEquals(id, repo.activeFocus.first()!!.id)
+        clock.advance(15 * 60_000L)
+        repo.refreshFocusActivity()
+        clock.advance(15 * 60_000L)
+        repo.pauseFocus()
+        assertEquals(49 * 60_000L, repo.activeFocus.first()!!.clock.accumulated)
+        clock.advance(2L * 24 * 60 * 60 * 1_000)
+        repo.refreshFocusActivity()
+        assertNotNull(repo.activeFocus.first())
+        assertTrue(repo.sessions.first().isEmpty())
+    }
+
+    @Test fun autoFinishStillSavesTimeWhenBookPagesChangedDuringFocus() = runBlocking {
+        val book = BookEntity(title = "页数修正", currentPage = 50, totalPages = 100)
+        repo.saveBook(book)
+        val id = repo.startFocus("阅读", book.id)
+        repo.saveBook(book.copy(currentPage = 40, totalPages = 40))
+        clock.advance(2L * 24 * 60 * 60 * 1_000)
+
+        assertTrue(repo.refreshFocusActivity())
+        assertNull(repo.activeFocus.first())
+        assertEquals(1_200_000L, repo.sessions.first().single { it.id == id }.durationMillis)
+    }
+
     /**
      * 书籍与标签的更新语义；删除不抹除历史。
      *

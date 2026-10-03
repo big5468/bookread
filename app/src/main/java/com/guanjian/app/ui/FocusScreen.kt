@@ -18,7 +18,7 @@ import com.guanjian.app.data.*
 import kotlinx.coroutines.delay
 
 /** 专注活动类型。与需求列出的五类一致。 */
-private val activityTypes = listOf("阅读", "寻找书籍", "课程学习", "写作或整理", "自由自习")
+private val activityTypes = listOf("阅读", "寻找书籍", "课程学习", "写作或整理", "自习一会")
 
 /**
  * 专注页。同一个 Composable 按 [active] 是否为空切换两种形态：
@@ -27,8 +27,8 @@ private val activityTypes = listOf("阅读", "寻找书籍", "课程学习", "�
  * 计时显示的关键实现：
  * **界面不维护「已过时长」这个累计值**，只每秒读取一次当前时间，
  * 然后交由 [com.guanjian.app.domain.FocusClock.duration] 现算。
- * 这样做的直接好处是——应用切到后台、进程被杀、屏幕旋转，甚至设备重启，
- * 回到界面时显示的时长都自动是正确的，不存在需要「补上丢失的时间」的问题。
+ * 应用离开前台后，持久化的最后活跃时间只允许再计 20 分钟；重新打开时
+ * 仓库会自动结算超时的专注，界面不会显示几天的误计时。
  *
  * @param clock 只读的时间来源，用于每秒取值
  * @param initialBookId 从书籍详情页进入时预选的书籍
@@ -45,12 +45,12 @@ fun FocusScreen(active: ActiveFocusEntity?, books: List<BookEntity>, plans: List
     // ---------- 形态一：尚未开始，选择活动 ----------
     if (active == null) {
         // 从书籍详情页进来时默认选中「阅读」并预置书籍，减少两次点击
-        var type by rememberSaveable(initialBookId) { mutableStateOf(if (initialBookId != null) "阅读" else "自由自习") }
+        var type by rememberSaveable(initialBookId) { mutableStateOf(if (initialBookId != null) "阅读" else "自习一会") }
         var book by rememberSaveable(initialBookId) { mutableStateOf(initialBookId ?: "") }
         PageColumn {
             Section(
                 title = "这一刻，想做什么？",
-                subtitle = "选好就开始，切到后台也会继续计时。",
+                subtitle = "选好就开始，离开应用后最多继续计时 20 分钟。",
                 icon = Icons.Default.PlayArrow,
                 accent = MaterialTheme.colorScheme.primary
             ) {

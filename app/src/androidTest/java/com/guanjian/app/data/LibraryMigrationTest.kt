@@ -44,4 +44,25 @@ class LibraryMigrationTest {
             }
         }
     }
+
+    @Test fun migrationTwoToThreeSeedsLastObservationWithoutDeletingActiveFocus() {
+        helper.createDatabase("migration-2-3", 2).apply {
+            execSQL("""
+                INSERT INTO active_focus
+                (singleton,id,activityType,startedAt,awaitingSummary,recoveredAfterReboot,zoneId,
+                 clock_running,clock_segmentWall,clock_segmentElapsed,clock_bootCount,clock_accumulated,clock_pausedDuration)
+                VALUES (1,'focus-1','阅读',100000,0,0,'Asia/Shanghai',1,100000,10000,1,0,0)
+            """.trimIndent())
+            close()
+        }
+
+        helper.runMigrationsAndValidate("migration-2-3", 3, true, LibraryDatabase.MIGRATION_2_3).use { db ->
+            db.query("SELECT * FROM active_focus WHERE id='focus-1'").use { cursor ->
+                cursor.moveToFirst()
+                assertEquals(100000L, cursor.getLong(cursor.getColumnIndexOrThrow("clock_observedWall")))
+                assertEquals(10000L, cursor.getLong(cursor.getColumnIndexOrThrow("clock_observedElapsed")))
+                assertEquals(1, cursor.getInt(cursor.getColumnIndexOrThrow("clock_observedBoot")))
+            }
+        }
+    }
 }
